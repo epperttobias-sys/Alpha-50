@@ -17,6 +17,35 @@
   header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:#0d1119}
   .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
   .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .hdr-r{display:flex;align-items:center;gap:16px}
+  .movebtn{background:linear-gradient(90deg,rgba(61,214,163,.15),rgba(255,92,108,.15));border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
+  .movebtn:hover{border-color:var(--accent2)}
+  .movebtn .ar{font-family:'JetBrains Mono',monospace}
+  .modal{position:fixed;inset:0;background:rgba(5,8,12,.72);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:70px 16px;overflow:auto}
+  .modal.open{display:flex}
+  .mbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:min(860px,100%);padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .mbox .mt{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px}
+  .mbox h2{font-size:18px}
+  .mbox .close{background:none;border:0;color:var(--muted);font-size:22px;line-height:1}
+  .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  .mcard{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel2)}
+  .mcard.g{box-shadow:inset 0 3px 0 var(--accent)} .mcard.l{box-shadow:inset 0 3px 0 var(--red)}
+  .mcard .lbl{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
+  .mcard .big{font-size:20px;font-weight:700;margin:8px 0 2px;cursor:pointer}
+  .mcard .big:hover{text-decoration:underline}
+  .mcard .tk{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:12px}
+  .mcard .kpis{display:flex;gap:18px;margin:12px 0;font-family:'JetBrains Mono',monospace}
+  .mcard .kpis div{display:flex;flex-direction:column;gap:2px}
+  .mcard .kpis span{font-family:Inter,sans-serif;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+  .mcard .kpis b{font-size:16px}
+  .mcard ol{list-style:none;border-top:1px solid var(--line);margin-top:8px}
+  .mcard ol li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #1b2230;font-size:12px;cursor:pointer}
+  .mcard ol li:hover b{text-decoration:underline}
+  .mcard ol li b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mcard ol li span{font-family:'JetBrains Mono',monospace;white-space:nowrap}
+  .mcard .open{margin-top:12px;width:100%;background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font-weight:600}
+  .mcard .open:hover{border-color:var(--accent2)}
+  @media (max-width:700px){ .mgrid{grid-template-columns:1fr} }
   .clock{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px}
   .tape{border-bottom:1px solid var(--line)}
   .layout{display:grid;grid-template-columns:240px auto minmax(0,1fr);min-height:calc(100vh - 110px)}
@@ -114,7 +143,10 @@
 
 <header>
   <div class="brand"><span class="dot"></span>Alpha 50</div>
-  <div class="clock" id="clock"></div>
+  <div class="hdr-r">
+    <button class="movebtn" id="moveBtn" title="Grösster Gewinner und Verlierer mit hohem Handelsvolumen"><span class="ar up">▲</span><span class="ar dn">▼</span> Top-Bewegung mit Volumen</button>
+    <div class="clock" id="clock"></div>
+  </div>
 </header>
 <div class="tape" id="tape"></div>
 
@@ -169,6 +201,22 @@
     </div>
   </main>
 
+</div>
+
+<div class="modal" id="moveModal" role="dialog" aria-modal="true" aria-labelledby="moveTitle">
+  <div class="mbox">
+    <div class="mt">
+      <div>
+        <h2 id="moveTitle">Grösste Bewegung mit grossem Handelsvolumen</h2>
+        <p class="hint" id="moveSub"></p>
+      </div>
+      <button class="close" id="moveClose" title="Schliessen">×</button>
+    </div>
+    <div class="mgrid">
+      <div class="mcard g" id="mvG"></div>
+      <div class="mcard l" id="mvL"></div>
+    </div>
+  </div>
 </div>
 
 <footer>Daten und Charts von TradingView (teils verzögert). Keine Anlageberatung.</footer>
@@ -320,6 +368,57 @@
     }
   }
   setInterval(loadData, 5 * 60 * 1000);
+
+  // Button: grösster Gewinner / Verlierer unter den meistgehandelten Titeln
+  function movers(){
+    const L = (DATA && DATA.lists) || {};
+    if(L.active_gainers || L.active_losers) return {g: L.active_gainers || [], l: L.active_losers || [], n: 100};
+    const vol = L.volume_leaders || [];
+    return {
+      g: vol.filter(x => x.chg > 0).sort((a, b) => b.chg - a.chg),
+      l: vol.filter(x => x.chg < 0).sort((a, b) => a.chg - b.chg),
+      n: vol.length
+    };
+  }
+  function moverCard(el, rows, gain){
+    if(!rows.length){ el.innerHTML = '<div class="lbl">' + (gain ? "Grösster Gewinner" : "Grösster Verlierer") + '</div><p class="hint" style="margin-top:10px">Heute kein Titel mit ' + (gain ? "Gewinn" : "Verlust") + '.</p>'; return; }
+    const x = rows[0];
+    const cls = gain ? "up" : "dn";
+    const pc = v => (v > 0 ? "+" : "") + nf(v, 2) + "%";
+    el.innerHTML =
+      '<div class="lbl">' + (gain ? "▲ Grösster Gewinner" : "▼ Grösster Verlierer") + '</div>' +
+      '<div class="big" data-t="' + esc(x.t) + '">' + esc(x.n) + '</div>' +
+      '<div class="tk">' + esc(x.t) + ' · ' + esc(x.c) + '</div>' +
+      '<div class="kpis">' +
+        '<div><span>Veränderung</span><b class="' + cls + '">' + pc(x.chg) + '</b></div>' +
+        '<div><span>Umsatz</span><b>' + big(x.val) + ' $</b></div>' +
+        '<div><span>Kurs</span><b>' + nf(x.p, 2) + ' <small style="font-size:11px;color:var(--muted)">' + esc(x.cur) + '</small></b></div>' +
+      '</div>' +
+      '<ol>' + rows.slice(1, 5).map((r, i) =>
+        '<li data-t="' + esc(r.t) + '"><b>' + (i + 2) + '. ' + esc(r.n) + '</b><span><span class="' + cls + '">' + pc(r.chg) + '</span> · ' + big(r.val) + ' $</span></li>').join("") + '</ol>' +
+      '<button class="open" data-t="' + esc(x.t) + '">Im Chart öffnen</button>';
+    el.querySelectorAll("[data-t]").forEach(n => n.addEventListener("click", () => { closeMove(); select(n.dataset.t); }));
+  }
+  function openMove(){
+    const m = movers();
+    const sub = document.getElementById("moveSub");
+    if(!DATA){
+      sub.textContent = "Noch keine Daten vorhanden.";
+      document.getElementById("mvG").innerHTML = ""; document.getElementById("mvL").innerHTML = "";
+    } else {
+      const d = new Date(DATA.updated);
+      sub.textContent = "Unter den " + m.n + " meistgehandelten MSCI-World-Aktien (Umsatz in USD) · Stand " +
+        d.toLocaleString("de-CH", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"});
+      moverCard(document.getElementById("mvG"), m.g, true);
+      moverCard(document.getElementById("mvL"), m.l, false);
+    }
+    document.getElementById("moveModal").classList.add("open");
+  }
+  function closeMove(){ document.getElementById("moveModal").classList.remove("open"); }
+  document.getElementById("moveBtn").addEventListener("click", openMove);
+  document.getElementById("moveClose").addEventListener("click", closeMove);
+  document.getElementById("moveModal").addEventListener("click", e => { if(e.target.id === "moveModal") closeMove(); });
+  document.addEventListener("keydown", e => { if(e.key === "Escape") closeMove(); });
 
   function renderWatch(){
     const ul = document.getElementById("watch");
