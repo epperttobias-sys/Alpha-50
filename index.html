@@ -19,7 +19,28 @@
   .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
   .clock{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px}
   .tape{border-bottom:1px solid var(--line)}
-  .layout{display:grid;grid-template-columns:270px minmax(0,1fr) 420px;min-height:calc(100vh - 110px)}
+  .layout{display:grid;grid-template-columns:240px auto minmax(0,1fr);min-height:calc(100vh - 110px)}
+  .ranks{border-right:1px solid var(--line);background:#0b0f17;padding:16px;display:flex;flex-direction:column;gap:12px;width:500px}
+  .ranks .rh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ranks .rh h2{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
+  .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .rcol{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+  .rcol h3{font-size:12px;font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .rcol h3 small{color:var(--muted);font-weight:500;font-size:10px}
+  .rcol.g h3{color:var(--accent)} .rcol.l h3{color:var(--red)}
+  .rlist{list-style:none;overflow:auto;max-height:420px}
+  .rlist li{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:6px;align-items:center;padding:7px 10px;border-bottom:1px solid #1b2230;cursor:pointer}
+  .rlist li:hover{background:var(--panel2)}
+  .rlist .rk{color:var(--muted);font-size:10.5px;font-family:'JetBrains Mono',monospace}
+  .rlist .nm{min-width:0}
+  .rlist .nm b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rlist .nm span{display:block;color:var(--muted);font-size:10px;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rlist .v{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11.5px;white-space:nowrap}
+  .rlist .v small{display:block;font-size:10px}
+  .rlist .addw{background:none;border:0;color:var(--muted);font-size:13px;padding:0 0 0 4px;opacity:0;cursor:pointer}
+  .rlist li:hover .addw{opacity:1}
+  .rlist .addw:hover{color:var(--accent)}
+  @media (min-width:2000px){ .ranks{width:960px} .rgrid{grid-template-columns:repeat(4,1fr)} .rlist{max-height:calc(100vh - 230px)} }
   .right{border-left:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
   .right .col-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .right h2{font-size:13px;font-weight:700;letter-spacing:.3px}
@@ -75,10 +96,12 @@
   .mini .overlay{position:absolute;inset:0;z-index:2}
   .empty{padding:40px;text-align:center;color:var(--muted)}
   footer{padding:14px 22px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
-  @media (max-width:1300px){
-    .layout{grid-template-columns:270px minmax(0,1fr)}
-    .right{grid-column:1 / -1;border-left:0;border-top:1px solid var(--line)}
+  @media (max-width:1400px){
+    .layout{grid-template-columns:240px minmax(0,1fr)}
+    .ranks{grid-column:1 / -1;grid-row:2;width:auto;border-right:0;border-top:1px solid var(--line)}
+    .rgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
   }
+  @media (max-width:900px){ .rgrid{grid-template-columns:1fr 1fr} }
   @media (max-width:900px){
     .layout{grid-template-columns:1fr}
     aside{border-right:0;border-bottom:1px solid var(--line)}
@@ -106,6 +129,17 @@
     <ul class="watch" id="watch"></ul>
     <button id="reset" style="margin-top:auto;background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:7px;font-size:11px">Standardliste wiederherstellen</button>
   </aside>
+
+  <section class="ranks">
+    <div class="rh"><h2>MSCI World</h2><span class="hint" id="scrUpd"></span></div>
+    <div class="rgrid">
+      <div class="rcol"><h3>Volumen <small>Umsatz USD</small></h3><ul class="rlist" id="r-volume_leaders"></ul></div>
+      <div class="rcol"><h3>Marktkap. <small>USD</small></h3><ul class="rlist" id="r-most_capitalized"></ul></div>
+      <div class="rcol g"><h3>Gewinner <small>heute</small></h3><ul class="rlist" id="r-top_gainers"></ul></div>
+      <div class="rcol l"><h3>Verlierer <small>heute</small></h3><ul class="rlist" id="r-top_losers"></ul></div>
+    </div>
+    <p class="hint">Nur Titel aus dem MSCI World. Klick öffnet den Chart, + nimmt in die Watchlist auf.</p>
+  </section>
 
   <main>
     <div class="top">
@@ -135,20 +169,6 @@
     </div>
   </main>
 
-  <aside class="right">
-    <div class="col-head">
-      <h2 id="scrTitle">Volumen</h2>
-      <span class="hint" id="scrUpd"></span>
-    </div>
-    <div class="tabs" id="scrTabs">
-      <button data-s="volume_leaders">Volumen</button>
-      <button data-s="most_capitalized">Marktkap.</button>
-      <button data-s="top_gainers">Gewinner</button>
-      <button data-s="top_losers">Verlierer</button>
-    </div>
-    <p class="hint" id="scrHint"></p>
-    <div id="volume"></div>
-  </aside>
 </div>
 
 <footer>Daten und Charts von TradingView (teils verzögert). Keine Anlageberatung.</footer>
@@ -241,18 +261,7 @@
     });
   }
 
-  const SCREENS = {
-    volume_leaders: ["Volumen", "Höchster Handelsumsatz heute (Stück × Kurs, in USD umgerechnet)."],
-    most_capitalized: ["Grösste Marktkapitalisierung", "Die wertvollsten Unternehmen im MSCI World (in USD)."],
-    top_gainers: ["Grösste Gewinner", "Höchster Kursgewinn in Prozent am letzten Handelstag."],
-    top_losers: ["Grösste Verlierer", "Grösster Kursverlust in Prozent am letzten Handelstag."]
-  };
-  let screen = store.get(KEY+"-screen", "volume_leaders");
-  if(!SCREENS[screen]) screen = "volume_leaders";
   let DATA = null;
-  document.querySelectorAll("#scrTabs button").forEach(b => b.addEventListener("click", () => {
-    screen = b.dataset.s; store.set(KEY+"-screen", screen); renderVolume();
-  }));
   const nf = (v, d) => v == null ? "–" : v.toLocaleString("de-CH", {minimumFractionDigits: d, maximumFractionDigits: d});
   function big(v){
     if(v == null) return "–";
@@ -270,41 +279,45 @@
     }catch(e){ DATA = DATA || false; }
     renderVolume();
   }
+  const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers"];
   function renderVolume(){
-    document.querySelectorAll("#scrTabs button").forEach(b => b.classList.toggle("on", b.dataset.s === screen));
-    document.getElementById("scrTitle").textContent = SCREENS[screen][0];
-    document.getElementById("scrHint").textContent = SCREENS[screen][1] + " Nur Titel aus dem MSCI World. Klick öffnet den Chart.";
-    const box = document.getElementById("volume");
     const upd = document.getElementById("scrUpd");
-    if(DATA === null){ box.innerHTML = '<div class="empty">Lade Daten …</div>'; return; }
-    if(!DATA){ box.innerHTML = '<div class="empty">Noch keine MSCI-World-Daten vorhanden. Sie werden automatisch alle 30 Minuten erzeugt.</div>'; upd.textContent = ""; return; }
-    const d = new Date(DATA.updated);
-    upd.textContent = "Stand " + d.toLocaleString("de-CH", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"});
-    upd.title = DATA.count + " Titel · Quelle: " + DATA.source;
-    const rows = (DATA.lists && DATA.lists[screen]) || [];
-    const metricHead = {volume_leaders: "Umsatz $", most_capitalized: "Mkt.-Kap. $", top_gainers: "Volumen", top_losers: "Volumen"}[screen];
-    const metric = x => screen === "volume_leaders" ? big(x.val) : screen === "most_capitalized" ? big(x.mc) : big(x.vol);
-    let html = '<table class="rk"><thead><tr><th>#</th><th>Titel</th><th>Kurs</th><th>%</th><th>' + metricHead + '</th><th></th></tr></thead><tbody>';
-    rows.forEach((x, i) => {
-      const cls = x.chg > 0 ? "up" : x.chg < 0 ? "dn" : "";
-      html += '<tr data-t="' + esc(x.t) + '"><td class="r">' + (i+1) + '</td>' +
-        '<td class="nm"><b>' + esc(x.n) + '</b><span>' + esc(x.t) + ' · ' + esc(x.c) + '</span></td>' +
-        '<td>' + nf(x.p, 2) + ' <span style="color:var(--muted);font-size:10px">' + esc(x.cur) + '</span></td>' +
-        '<td class="' + cls + '">' + (x.chg > 0 ? "+" : "") + nf(x.chg, 2) + '</td>' +
-        '<td>' + metric(x) + '</td>' +
-        '<td><button class="addw" title="Zur Watchlist">+</button></td></tr>';
-    });
-    html += '</tbody></table>';
-    box.innerHTML = rows.length ? html : '<div class="empty">Keine Daten für diese Liste.</div>';
-    box.querySelectorAll("tbody tr").forEach(tr => {
-      const sym = tr.dataset.t;
-      tr.addEventListener("click", () => select(sym));
-      tr.querySelector(".addw").addEventListener("click", e => {
-        e.stopPropagation();
-        if(!list.includes(sym)){ list.push(sym); save(); renderTape(); renderMinis(); }
-        select(sym);
+    LISTS.forEach(key => {
+      const ul = document.getElementById("r-" + key);
+      if(DATA === null){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Lade Daten …</li>'; return; }
+      if(!DATA){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Noch keine Daten.</li>'; return; }
+      const rows = (DATA.lists && DATA.lists[key]) || [];
+      ul.innerHTML = rows.map((x, i) => {
+        const cls = x.chg > 0 ? "up" : x.chg < 0 ? "dn" : "";
+        const pct = '<span class="' + cls + '">' + (x.chg > 0 ? "+" : "") + nf(x.chg, 2) + '%</span>';
+        let main, sub;
+        if(key === "volume_leaders"){ main = big(x.val); sub = pct; }
+        else if(key === "most_capitalized"){ main = big(x.mc); sub = pct; }
+        else { main = pct; sub = '<span style="color:var(--muted)">' + nf(x.p, 2) + ' ' + esc(x.cur) + '</span>'; }
+        return '<li data-t="' + esc(x.t) + '" title="' + esc(x.n) + ' · ' + esc(x.c) + '">' +
+          '<span class="rk">' + (i+1) + '</span>' +
+          '<span class="nm"><b>' + esc(x.n) + '</b><span>' + esc(x.t) + '</span></span>' +
+          '<span class="v">' + main + '<small>' + sub + '</small></span>' +
+          '</li>';
+      }).join("");
+      ul.querySelectorAll("li[data-t]").forEach(li => {
+        const sym = li.dataset.t;
+        const add = document.createElement("button");
+        add.className = "addw"; add.textContent = "+"; add.title = "Zur Watchlist";
+        add.addEventListener("click", e => {
+          e.stopPropagation();
+          if(!list.includes(sym)){ list.push(sym); save(); renderTape(); renderMinis(); }
+          select(sym);
+        });
+        li.querySelector(".v").appendChild(add);
+        li.addEventListener("click", () => select(sym));
       });
     });
+    if(DATA){
+      const d = new Date(DATA.updated);
+      upd.textContent = "Stand " + d.toLocaleString("de-CH", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) + " · " + DATA.count + " Titel";
+      upd.title = "Quelle: " + DATA.source;
+    }
   }
   setInterval(loadData, 5 * 60 * 1000);
 
