@@ -29,7 +29,20 @@
   .tabs button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
   .tabs button[data-s="top_gainers"].on{color:var(--accent)}
   .tabs button[data-s="top_losers"].on{color:var(--red)}
-  #volume{height:760px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
+  #volume{border-radius:12px;overflow:auto;max-height:780px;border:1px solid var(--line);background:var(--panel)}
+  table.rk{width:100%;border-collapse:collapse;font-size:12px}
+  table.rk th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;text-align:right;padding:8px 8px;border-bottom:1px solid var(--line)}
+  table.rk th:nth-child(2){text-align:left}
+  table.rk td{padding:7px 8px;border-bottom:1px solid #1b2230;text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+  table.rk td.nm{text-align:left;font-family:Inter,sans-serif;white-space:normal}
+  table.rk td.nm b{display:block;font-weight:600;font-size:12px;line-height:1.25}
+  table.rk td.nm span{color:var(--muted);font-size:10.5px;font-family:'JetBrains Mono',monospace}
+  table.rk td.r{color:var(--muted);width:22px}
+  table.rk tr{cursor:pointer}
+  table.rk tbody tr:hover{background:var(--panel2)}
+  .up{color:var(--accent)} .dn{color:var(--red)}
+  .addw{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;width:22px;height:22px;line-height:1}
+  .addw:hover{color:var(--accent);border-color:var(--accent)}
   aside{border-right:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:14px}
   aside h2,.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
   form.add{display:flex;gap:6px}
@@ -125,21 +138,7 @@
   <aside class="right">
     <div class="col-head">
       <h2 id="scrTitle">Volumen</h2>
-      <select id="volMarket" title="Börsenplatz">
-        <option value="america">USA</option>
-        <option value="japan">Japan</option>
-        <option value="uk">Grossbritannien</option>
-        <option value="canada">Kanada</option>
-        <option value="france">Frankreich</option>
-        <option value="germany">Deutschland</option>
-        <option value="switzerland">Schweiz</option>
-        <option value="australia">Australien</option>
-        <option value="netherlands">Niederlande</option>
-        <option value="sweden">Schweden</option>
-        <option value="italy">Italien</option>
-        <option value="spain">Spanien</option>
-        <option value="denmark">Dänemark</option>
-      </select>
+      <span class="hint" id="scrUpd"></span>
     </div>
     <div class="tabs" id="scrTabs">
       <button data-s="volume_leaders">Volumen</button>
@@ -243,32 +242,71 @@
   }
 
   const SCREENS = {
-    volume_leaders: ["Volumen", "Meistgehandelte Aktien nach Stückzahl am gewählten Börsenplatz."],
-    most_capitalized: ["Grösste Marktkapitalisierung", "Die wertvollsten Unternehmen am gewählten Börsenplatz."],
-    top_gainers: ["Grösste Gewinner", "Höchster Kursgewinn in Prozent heute."],
-    top_losers: ["Grösste Verlierer", "Grösster Kursverlust in Prozent heute."]
+    volume_leaders: ["Volumen", "Höchster Handelsumsatz heute (Stück × Kurs, in USD umgerechnet)."],
+    most_capitalized: ["Grösste Marktkapitalisierung", "Die wertvollsten Unternehmen im MSCI World (in USD)."],
+    top_gainers: ["Grösste Gewinner", "Höchster Kursgewinn in Prozent am letzten Handelstag."],
+    top_losers: ["Grösste Verlierer", "Grösster Kursverlust in Prozent am letzten Handelstag."]
   };
   let screen = store.get(KEY+"-screen", "volume_leaders");
   if(!SCREENS[screen]) screen = "volume_leaders";
+  let DATA = null;
   document.querySelectorAll("#scrTabs button").forEach(b => b.addEventListener("click", () => {
     screen = b.dataset.s; store.set(KEY+"-screen", screen); renderVolume();
   }));
+  const nf = (v, d) => v == null ? "–" : v.toLocaleString("de-CH", {minimumFractionDigits: d, maximumFractionDigits: d});
+  function big(v){
+    if(v == null) return "–";
+    if(v >= 1e12) return nf(v/1e12, 2) + " Bio.";
+    if(v >= 1e9) return nf(v/1e9, 1) + " Mrd.";
+    if(v >= 1e6) return nf(v/1e6, 1) + " Mio.";
+    return nf(v, 0);
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  async function loadData(){
+    try{
+      const r = await fetch("data.json?t=" + Date.now(), {cache: "no-store"});
+      if(!r.ok) throw new Error(r.status);
+      DATA = await r.json();
+    }catch(e){ DATA = DATA || false; }
+    renderVolume();
+  }
   function renderVolume(){
-    const sel = document.getElementById("volMarket");
     document.querySelectorAll("#scrTabs button").forEach(b => b.classList.toggle("on", b.dataset.s === screen));
     document.getElementById("scrTitle").textContent = SCREENS[screen][0];
-    document.getElementById("scrHint").textContent = SCREENS[screen][1] + " Klick auf eine Spaltenüberschrift sortiert.";
-    widget(document.getElementById("volume"), "screener", {
-      width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: screen,
-      market: sel.value, showToolbar: true, colorTheme: "dark", locale: "de_DE", isTransparent: true
+    document.getElementById("scrHint").textContent = SCREENS[screen][1] + " Nur Titel aus dem MSCI World. Klick öffnet den Chart.";
+    const box = document.getElementById("volume");
+    const upd = document.getElementById("scrUpd");
+    if(DATA === null){ box.innerHTML = '<div class="empty">Lade Daten …</div>'; return; }
+    if(!DATA){ box.innerHTML = '<div class="empty">Noch keine MSCI-World-Daten vorhanden. Sie werden automatisch alle 30 Minuten erzeugt.</div>'; upd.textContent = ""; return; }
+    const d = new Date(DATA.updated);
+    upd.textContent = "Stand " + d.toLocaleString("de-CH", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"});
+    upd.title = DATA.count + " Titel · Quelle: " + DATA.source;
+    const rows = (DATA.lists && DATA.lists[screen]) || [];
+    const metricHead = {volume_leaders: "Umsatz $", most_capitalized: "Mkt.-Kap. $", top_gainers: "Volumen", top_losers: "Volumen"}[screen];
+    const metric = x => screen === "volume_leaders" ? big(x.val) : screen === "most_capitalized" ? big(x.mc) : big(x.vol);
+    let html = '<table class="rk"><thead><tr><th>#</th><th>Titel</th><th>Kurs</th><th>%</th><th>' + metricHead + '</th><th></th></tr></thead><tbody>';
+    rows.forEach((x, i) => {
+      const cls = x.chg > 0 ? "up" : x.chg < 0 ? "dn" : "";
+      html += '<tr data-t="' + esc(x.t) + '"><td class="r">' + (i+1) + '</td>' +
+        '<td class="nm"><b>' + esc(x.n) + '</b><span>' + esc(x.t) + ' · ' + esc(x.c) + '</span></td>' +
+        '<td>' + nf(x.p, 2) + ' <span style="color:var(--muted);font-size:10px">' + esc(x.cur) + '</span></td>' +
+        '<td class="' + cls + '">' + (x.chg > 0 ? "+" : "") + nf(x.chg, 2) + '</td>' +
+        '<td>' + metric(x) + '</td>' +
+        '<td><button class="addw" title="Zur Watchlist">+</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = rows.length ? html : '<div class="empty">Keine Daten für diese Liste.</div>';
+    box.querySelectorAll("tbody tr").forEach(tr => {
+      const sym = tr.dataset.t;
+      tr.addEventListener("click", () => select(sym));
+      tr.querySelector(".addw").addEventListener("click", e => {
+        e.stopPropagation();
+        if(!list.includes(sym)){ list.push(sym); save(); renderTape(); renderMinis(); }
+        select(sym);
+      });
     });
   }
-  (function(){
-    const sel = document.getElementById("volMarket");
-    sel.value = store.get(KEY+"-volmkt", "america");
-    if(!sel.value) sel.value = "america";
-    sel.addEventListener("change", () => { store.set(KEY+"-volmkt", sel.value); renderVolume(); });
-  })();
+  setInterval(loadData, 5 * 60 * 1000);
 
   function renderWatch(){
     const ul = document.getElementById("watch");
@@ -339,7 +377,7 @@
   }
   tick(); setInterval(tick, 1000);
 
-  renderIntervals(); renderWatch(); renderTape(); renderMain(); renderMinis(); renderVolume();
+  renderIntervals(); renderWatch(); renderTape(); renderMain(); renderMinis(); renderVolume(); loadData();
 })();
 </script>
 </body>
