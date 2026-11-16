@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alpha 50</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#121722; --panel2:#171d2a; --line:#232b3b;
+    --text:#e6e9ef; --muted:#8a93a6; --accent:#3dd6a3; --accent2:#5b8cff; --red:#ff5c6c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px}
+  a{color:var(--accent2)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:#0d1119}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .clock{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px}
+  .tape{border-bottom:1px solid var(--line)}
+  .layout{display:grid;grid-template-columns:270px 1fr;min-height:calc(100vh - 110px)}
+  aside{border-right:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:14px}
+  aside h2,.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
+  form.add{display:flex;gap:6px}
+  form.add input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;text-transform:uppercase}
+  form.add input:focus{outline:none;border-color:var(--accent2)}
+  button{cursor:pointer;font-family:inherit}
+  form.add button{background:var(--accent);color:#04150f;border:0;border-radius:8px;padding:0 12px;font-weight:700}
+  .hint{color:var(--muted);font-size:11px;line-height:1.5}
+  .hint code{font-family:'JetBrains Mono',monospace;color:var(--text);background:var(--panel);padding:1px 4px;border-radius:4px}
+  ul.watch{list-style:none;display:flex;flex-direction:column;gap:4px;overflow:auto}
+  ul.watch li{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;font-family:'JetBrains Mono',monospace;font-size:12.5px}
+  ul.watch li:hover{background:var(--panel)}
+  ul.watch li.active{background:var(--panel2);border-color:var(--line);color:var(--accent)}
+  ul.watch li .x{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:0 4px;opacity:0}
+  ul.watch li:hover .x{opacity:1}
+  ul.watch li .x:hover{color:var(--red)}
+  main{padding:18px 22px;display:flex;flex-direction:column;gap:18px;min-width:0}
+  .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .top h1{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
+  .seg button{background:none;border:0;color:var(--muted);padding:6px 11px;border-radius:7px;font-size:12px;font-weight:600}
+  .seg button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .card .head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+  #chart{height:560px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .ta{height:450px}
+  .minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  .mini{height:200px;cursor:pointer;position:relative}
+  .mini .overlay{position:absolute;inset:0;z-index:2}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  footer{padding:14px 22px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr}
+    aside{border-right:0;border-bottom:1px solid var(--line)}
+    .grid2{grid-template-columns:1fr}
+    #chart{height:440px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot"></span>Alpha 50</div>
+  <div class="clock" id="clock"></div>
+</header>
+<div class="tape" id="tape"></div>
+
+<div class="layout">
+  <aside>
+    <h2>Watchlist</h2>
+    <form class="add" id="addForm">
+      <input id="addInput" placeholder="z.B. NASDAQ:AMD" autocomplete="off" spellcheck="false">
+      <button type="submit" title="Hinzufügen">+</button>
+    </form>
+    <p class="hint">Format <code>BÖRSE:SYMBOL</code>, z.B. <code>NYSE:KO</code>, <code>XETR:SAP</code>, <code>SIX:NESN</code>. Ein reines Kürzel wie <code>AAPL</code> geht meist auch.</p>
+    <ul class="watch" id="watch"></ul>
+    <button id="reset" style="margin-top:auto;background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:7px;font-size:11px">Standardliste wiederherstellen</button>
+  </aside>
+
+  <main>
+    <div class="top">
+      <h1 id="symTitle">–</h1>
+      <div class="seg" id="intervals"></div>
+    </div>
+
+    <div class="card">
+      <div class="head"><span class="section-title">Chart · SMA 50/200 · Bollinger · RSI · MACD</span></div>
+      <div id="chart"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="head"><span class="section-title">Technisches Signal (Oszillatoren &amp; gleitende Durchschnitte)</span></div>
+        <div class="ta" id="ta"></div>
+      </div>
+      <div class="card">
+        <div class="head"><span class="section-title">Technisches Signal · Wochenbasis</span></div>
+        <div class="ta" id="taWeek"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:10px">Alle Werte im Überblick (Klick öffnet den Chart)</div>
+      <div class="minis" id="minis"></div>
+    </div>
+  </main>
+</div>
+
+<footer>Daten und Charts von TradingView (teils verzögert). Keine Anlageberatung.</footer>
+
+<script>
+(function(){
+  const DEFAULTS = ["NASDAQ:AAPL","NASDAQ:MSFT","NASDAQ:NVDA","NASDAQ:AMZN","NASDAQ:GOOGL","NASDAQ:TSLA","AMEX:SPY"];
+  const INTERVALS = [["1","1m"],["15","15m"],["60","1h"],["240","4h"],["D","1T"],["W","1W"],["M","1M"]];
+  const TA_INTERVAL = {"1":"1m","15":"15m","60":"1h","240":"4h","D":"1D","W":"1W","M":"1M"};
+  const KEY = "aktien-watchlist-v1";
+
+  const store = {
+    get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+
+  let list = store.get(KEY, DEFAULTS.slice());
+  if(!Array.isArray(list) || !list.length) list = DEFAULTS.slice();
+  let current = store.get(KEY+"-cur", list[0]);
+  if(!list.includes(current)) current = list[0];
+  let interval = store.get(KEY+"-int", "D");
+
+  // Fügt ein TradingView-Embed-Widget in ein Element ein
+  function widget(el, name, config){
+    el.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "tradingview-widget-container";
+    wrap.style.height = "100%";
+    const inner = document.createElement("div");
+    inner.className = "tradingview-widget-container__widget";
+    inner.style.height = "100%";
+    wrap.appendChild(inner);
+    const s = document.createElement("script");
+    s.src = "https://s3.tradingview.com/external-embedding/embed-widget-" + name + ".js";
+    s.async = true;
+    s.textContent = JSON.stringify(config);
+    wrap.appendChild(s);
+    el.appendChild(wrap);
+  }
+
+  function renderTape(){
+    widget(document.getElementById("tape"), "ticker-tape", {
+      symbols: list.map(s => ({proName: s, title: s.split(":").pop()})),
+      showSymbolLogo: true, colorTheme: "dark", isTransparent: true,
+      displayMode: "adaptive", locale: "de_DE"
+    });
+  }
+
+  function renderChart(){
+    widget(document.getElementById("chart"), "advanced-chart", {
+      autosize: true, symbol: current, interval: interval, timezone: "Europe/Zurich",
+      theme: "dark", style: "1", locale: "de_DE", allow_symbol_change: false,
+      hide_side_toolbar: false, withdateranges: true, calendar: false,
+      backgroundColor: "rgba(18,23,34,1)", gridColor: "rgba(35,43,59,0.6)",
+      studies: [
+        {id: "MASimple@tv-basicstudies", inputs: {length: 50}},
+        {id: "MASimple@tv-basicstudies", inputs: {length: 200}},
+        "BB@tv-basicstudies", "RSI@tv-basicstudies", "MACD@tv-basicstudies"
+      ],
+      support_host: "https://www.tradingview.com"
+    });
+  }
+
+  function renderTA(){
+    const base = {width: "100%", height: "100%", isTransparent: true, symbol: current,
+      showIntervalTabs: true, displayMode: "multiple", locale: "de_DE", colorTheme: "dark"};
+    widget(document.getElementById("ta"), "technical-analysis", Object.assign({}, base, {interval: TA_INTERVAL[interval] || "1D"}));
+    widget(document.getElementById("taWeek"), "technical-analysis", Object.assign({}, base, {interval: "1W", showIntervalTabs: false}));
+  }
+
+  function renderMinis(){
+    const box = document.getElementById("minis");
+    box.innerHTML = "";
+    if(!list.length){ box.innerHTML = '<div class="empty">Watchlist ist leer.</div>'; return; }
+    list.forEach(sym => {
+      const card = document.createElement("div");
+      card.className = "card mini";
+      const holder = document.createElement("div");
+      holder.style.height = "100%";
+      card.appendChild(holder);
+      const ov = document.createElement("div");
+      ov.className = "overlay"; ov.title = sym + " öffnen";
+      ov.addEventListener("click", () => select(sym));
+      card.appendChild(ov);
+      box.appendChild(card);
+      widget(holder, "mini-symbol-overview", {
+        symbol: sym, width: "100%", height: "100%", locale: "de_DE",
+        dateRange: "3M", colorTheme: "dark", isTransparent: true, autosize: true, chartOnly: false
+      });
+    });
+  }
+
+  function renderWatch(){
+    const ul = document.getElementById("watch");
+    ul.innerHTML = "";
+    list.forEach(sym => {
+      const li = document.createElement("li");
+      if(sym === current) li.className = "active";
+      const name = document.createElement("span"); name.textContent = sym;
+      const x = document.createElement("button"); x.className = "x"; x.textContent = "×"; x.title = "Entfernen";
+      x.addEventListener("click", e => { e.stopPropagation(); remove(sym); });
+      li.append(name, x);
+      li.addEventListener("click", () => select(sym));
+      ul.appendChild(li);
+    });
+  }
+
+  function renderIntervals(){
+    const seg = document.getElementById("intervals");
+    seg.innerHTML = "";
+    INTERVALS.forEach(([v, label]) => {
+      const b = document.createElement("button");
+      b.textContent = label; if(v === interval) b.className = "on";
+      b.addEventListener("click", () => { interval = v; store.set(KEY+"-int", v); renderIntervals(); renderChart(); renderTA(); });
+      seg.appendChild(b);
+    });
+  }
+
+  function renderMain(){
+    document.getElementById("symTitle").textContent = current || "–";
+    if(!current){ ["chart","ta","taWeek"].forEach(id => document.getElementById(id).innerHTML = '<div class="empty">Füge links eine Aktie hinzu.</div>'); return; }
+    renderChart(); renderTA();
+  }
+
+  function select(sym){
+    current = sym; store.set(KEY+"-cur", sym);
+    renderWatch(); renderMain();
+    window.scrollTo({top: 0, behavior: "smooth"});
+  }
+
+  function save(){ store.set(KEY, list); }
+
+  function remove(sym){
+    list = list.filter(s => s !== sym); save();
+    if(current === sym){ current = list[0] || null; store.set(KEY+"-cur", current); renderMain(); }
+    renderWatch(); renderTape(); renderMinis();
+  }
+
+  document.getElementById("addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const inp = document.getElementById("addInput");
+    const sym = inp.value.trim().toUpperCase().replace(/\s+/g, "");
+    if(!sym) return;
+    if(!list.includes(sym)){ list.push(sym); save(); renderTape(); renderMinis(); }
+    inp.value = "";
+    select(sym);
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    list = DEFAULTS.slice(); save(); current = list[0]; store.set(KEY+"-cur", current);
+    renderWatch(); renderTape(); renderMinis(); renderMain();
+  });
+
+  function tick(){
+    const d = new Date();
+    document.getElementById("clock").textContent =
+      d.toLocaleDateString("de-CH", {weekday:"short", day:"2-digit", month:"2-digit", year:"numeric"}) + "  " +
+      d.toLocaleTimeString("de-CH");
+  }
+  tick(); setInterval(tick, 1000);
+
+  renderIntervals(); renderWatch(); renderTape(); renderMain(); renderMinis();
+})();
+</script>
+</body>
+</html>
