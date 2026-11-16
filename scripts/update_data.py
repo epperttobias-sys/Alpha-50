@@ -14,38 +14,39 @@ from datetime import datetime, timezone
 import requests
 import yfinance as yf
 
-HOLDINGS_URL = ("https://www.ishares.com/us/products/239696/ishares-msci-world-etf/"
-                "1467271812596.ajax?fileType=csv&fileName=URTH_holdings&dataType=fund")
+HOLDINGS_URLS = [
+    "https://www.ishares.com/us/products/239696/ishares-msci-world-etf/latest-holdings.csv",
+    "https://www.ishares.com/us/products/239696/ishares-msci-world-etf/"
+    "1467271812596.ajax?fileType=csv&fileName=URTH_holdings&dataType=fund",
+]
 
 # iShares-Börsenname (Teilstring, klein) -> (Yahoo-Suffix, TradingView-Präfix)
 EXCHANGES = [
     ("copenhagen", ".CO", "OMXCOP"),
     ("stockholm", ".ST", "OMXSTO"),
     ("helsinki", ".HE", "OMXHEX"),
-    ("nasdaq omx nordic", None, None),           # Sonderfall: Land entscheidet
-    ("nordic", None, None),
+    ("nordic", None, None),                      # Land entscheidet (NORDIC)
+    ("euronext amsterdam", ".AS", "EURONEXT"),
+    ("euronext paris", ".PA", "EURONEXT"),
+    ("euronext brussels", ".BR", "EURONEXT"),
+    ("euronext lisbon", ".LS", "EURONEXT"),
     ("nasdaq", "", "NASDAQ"),
-    ("new york stock exchange", "", "NYSE"),
     ("nyse arca", "", "AMEX"),
+    ("nyse", "", "NYSE"),
+    ("new york stock exchange", "", "NYSE"),
     ("cboe", "", ""),
     ("tokyo", ".T", "TSE"),
     ("london", ".L", "LSE"),
     ("xetra", ".DE", "XETR"),
     ("six swiss", ".SW", "SIX"),
-    ("euronext amsterdam", ".AS", "EURONEXT"),
-    ("euronext paris", ".PA", "EURONEXT"),
-    ("euronext brussels", ".BR", "EURONEXT"),
-    ("euronext lisbon", ".LS", "EURONEXT"),
     ("toronto", ".TO", "TSX"),
     ("asx", ".AX", "ASX"),
     ("borsa italiana", ".MI", "MIL"),
     ("madrid", ".MC", "BME"),
-    ("mercado continuo", ".MC", "BME"),
     ("oslo", ".OL", "OSL"),
     ("hong kong", ".HK", "HKEX"),
     ("singapore", ".SI", "SGX"),
     ("irish", ".IR", ""),
-    ("dublin", ".IR", ""),
     ("wiener", ".VI", "VIE"),
     ("tel aviv", ".TA", "TASE"),
     ("new zealand", ".NZ", "NZX"),
@@ -106,10 +107,24 @@ def map_symbol(ticker, exchange, location):
     return y, tvs
 
 
+def fetch_holdings_text():
+    errors = []
+    for url in HOLDINGS_URLS:
+        try:
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                                           "Accept": "text/csv,text/plain,*/*"}, timeout=60)
+            r.raise_for_status()
+            text = r.content.decode("utf-8-sig", errors="replace")
+            if "\nTicker," in text or text.startswith("Ticker,"):
+                return text
+            errors.append(f"{url}: kein CSV")
+        except Exception as e:
+            errors.append(f"{url}: {e}")
+    raise RuntimeError(" | ".join(errors))
+
+
 def load_holdings():
-    r = requests.get(HOLDINGS_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=60)
-    r.raise_for_status()
-    text = r.content.decode("utf-8-sig", errors="replace")
+    text = fetch_holdings_text()
     lines = text.splitlines()
     start = next(i for i, l in enumerate(lines) if l.startswith("Ticker,"))
     rows = list(csv.DictReader(io.StringIO("\n".join(lines[start:]))))
@@ -130,9 +145,13 @@ def load_holdings():
     return out
 
 
+CUR = {"": "USD", ".AS": "EUR", ".PA": "EUR", ".DE": "EUR", ".SW": "CHF", ".T": "JPY", ".L": "GBP", ".TO": "CAD"}
+
+
 def fallback_holdings():
     return [{"y": t + suf, "t": f"{tv}:{t.replace('-', '.')}", "n": n, "c": c, "w": float("nan"),
-             "ref": float("nan"), "cur": "USD"} for t, n, c, suf, tv in FALLBACK]
+             "ref": float("nan"), "cur": CUR.get(suf, "USD"), "pence": suf == ".L"}
+            for t, n, c, suf, tv in FALLBACK]
 
 
 def fx_rates(currencies):
@@ -153,9 +172,11 @@ def fx_rates(currencies):
 
 def main():
     source = "iShares MSCI World ETF (URTH)"
+    note = ""
     try:
         hold = load_holdings()
     except Exception as e:
+        note = str(e)[:500]
         print("Holdings nicht geladen, nutze Ersatzliste:", e, file=sys.stderr)
         hold = fallback_holdings()
         source = "Ersatzliste (grösste MSCI-World-Titel)"
@@ -177,7 +198,7 @@ def main():
         vol = float(df["Volume"].iloc[-1] or 0)
         if not (close > 0 and prev > 0):
             continue
-        factor = 1.0
+        factor = 0.01 if h.get("pence") else 1.0
         if h["ref"] == h["ref"] and h["ref"] > 0:
             ratio = close / h["ref"]
             if 50 < ratio < 200:          # Kurs in Pence/Agorot
@@ -212,6 +233,7 @@ def main():
         "updated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "source": source,
         "count": len(items),
+        "note": note,
         "lists": {
             "volume_leaders": clean(sorted(items, key=lambda x: x["val"], reverse=True)[:50]),
             "most_capitalized": clean(sorted([x for x in items if x.get("mc")], key=lambda x: x["mc"], reverse=True)[:50]),
