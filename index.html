@@ -19,12 +19,17 @@
   .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
   .clock{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px}
   .tape{border-bottom:1px solid var(--line)}
-  .layout{display:grid;grid-template-columns:270px minmax(0,1fr) 400px;min-height:calc(100vh - 110px)}
+  .layout{display:grid;grid-template-columns:270px minmax(0,1fr) 420px;min-height:calc(100vh - 110px)}
   .right{border-left:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
   .right .col-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .right h2{font-size:13px;font-weight:700;letter-spacing:.3px}
   .right select{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-size:12px;font-family:inherit}
-  #volume{height:720px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .tabs button{background:none;border:0;color:var(--muted);padding:8px 4px;border-radius:7px;font-size:12px;font-weight:600}
+  .tabs button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+  .tabs button[data-s="top_gainers"].on{color:var(--accent)}
+  .tabs button[data-s="top_losers"].on{color:var(--red)}
+  #volume{height:760px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
   aside{border-right:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:14px}
   aside h2,.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
   form.add{display:flex;gap:6px}
@@ -119,7 +124,7 @@
 
   <aside class="right">
     <div class="col-head">
-      <h2>Volumen</h2>
+      <h2 id="scrTitle">Volumen</h2>
       <select id="volMarket" title="Börsenplatz">
         <option value="america">USA</option>
         <option value="japan">Japan</option>
@@ -136,7 +141,13 @@
         <option value="denmark">Dänemark</option>
       </select>
     </div>
-    <p class="hint">Meistgehandelte Aktien nach Volumen, nach Ländern des MSCI World. Klick auf eine Spalte sortiert.</p>
+    <div class="tabs" id="scrTabs">
+      <button data-s="volume_leaders">Volumen</button>
+      <button data-s="most_capitalized">Marktkap.</button>
+      <button data-s="top_gainers">Gewinner</button>
+      <button data-s="top_losers">Verlierer</button>
+    </div>
+    <p class="hint" id="scrHint"></p>
     <div id="volume"></div>
   </aside>
 </div>
@@ -231,10 +242,24 @@
     });
   }
 
+  const SCREENS = {
+    volume_leaders: ["Volumen", "Meistgehandelte Aktien nach Stückzahl am gewählten Börsenplatz."],
+    most_capitalized: ["Grösste Marktkapitalisierung", "Die wertvollsten Unternehmen am gewählten Börsenplatz."],
+    top_gainers: ["Grösste Gewinner", "Höchster Kursgewinn in Prozent heute."],
+    top_losers: ["Grösste Verlierer", "Grösster Kursverlust in Prozent heute."]
+  };
+  let screen = store.get(KEY+"-screen", "volume_leaders");
+  if(!SCREENS[screen]) screen = "volume_leaders";
+  document.querySelectorAll("#scrTabs button").forEach(b => b.addEventListener("click", () => {
+    screen = b.dataset.s; store.set(KEY+"-screen", screen); renderVolume();
+  }));
   function renderVolume(){
     const sel = document.getElementById("volMarket");
+    document.querySelectorAll("#scrTabs button").forEach(b => b.classList.toggle("on", b.dataset.s === screen));
+    document.getElementById("scrTitle").textContent = SCREENS[screen][0];
+    document.getElementById("scrHint").textContent = SCREENS[screen][1] + " Klick auf eine Spaltenüberschrift sortiert.";
     widget(document.getElementById("volume"), "screener", {
-      width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: "volume_leaders",
+      width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: screen,
       market: sel.value, showToolbar: true, colorTheme: "dark", locale: "de_DE", isTransparent: true
     });
   }
