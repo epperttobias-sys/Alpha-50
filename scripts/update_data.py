@@ -198,14 +198,14 @@ def main():
         vol = float(df["Volume"].iloc[-1] or 0)
         if not (close > 0 and prev > 0):
             continue
-        factor = 0.01 if h.get("pence") else 1.0
-        if h["ref"] == h["ref"] and h["ref"] > 0:
-            ratio = close / h["ref"]
-            if 50 < ratio < 200:          # Kurs in Pence/Agorot
-                factor = 0.01
         fx = rates.get(h["cur"])
         if fx is None:
             continue
+        factor = 0.01 if h.get("pence") else 1.0
+        if h["cur"] in ("GBP", "ILS") and h["ref"] == h["ref"] and h["ref"] > 0:
+            # Yahoo notiert London in Pence und Tel Aviv in Agorot
+            if 50 < close * fx / h["ref"] < 200 or 50 < close / h["ref"] < 200:
+                factor = 0.01
         items.append({
             "n": h["n"], "t": h["t"], "c": h["c"], "w": None if math.isnan(h["w"]) else round(h["w"], 3),
             "p": round(close * factor, 4), "cur": h["cur"], "chg": round((close / prev - 1) * 100, 2),
