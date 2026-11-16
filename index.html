@@ -19,7 +19,12 @@
   .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
   .clock{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px}
   .tape{border-bottom:1px solid var(--line)}
-  .layout{display:grid;grid-template-columns:270px 1fr;min-height:calc(100vh - 110px)}
+  .layout{display:grid;grid-template-columns:270px minmax(0,1fr) 400px;min-height:calc(100vh - 110px)}
+  .right{border-left:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+  .right .col-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .right h2{font-size:13px;font-weight:700;letter-spacing:.3px}
+  .right select{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-size:12px;font-family:inherit}
+  #volume{height:720px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
   aside{border-right:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:14px}
   aside h2,.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
   form.add{display:flex;gap:6px}
@@ -52,6 +57,10 @@
   .mini .overlay{position:absolute;inset:0;z-index:2}
   .empty{padding:40px;text-align:center;color:var(--muted)}
   footer{padding:14px 22px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
+  @media (max-width:1300px){
+    .layout{grid-template-columns:270px minmax(0,1fr)}
+    .right{grid-column:1 / -1;border-left:0;border-top:1px solid var(--line)}
+  }
   @media (max-width:900px){
     .layout{grid-template-columns:1fr}
     aside{border-right:0;border-bottom:1px solid var(--line)}
@@ -107,6 +116,29 @@
       <div class="minis" id="minis"></div>
     </div>
   </main>
+
+  <aside class="right">
+    <div class="col-head">
+      <h2>Volumen</h2>
+      <select id="volMarket" title="Börsenplatz">
+        <option value="america">USA</option>
+        <option value="japan">Japan</option>
+        <option value="uk">Grossbritannien</option>
+        <option value="canada">Kanada</option>
+        <option value="france">Frankreich</option>
+        <option value="germany">Deutschland</option>
+        <option value="switzerland">Schweiz</option>
+        <option value="australia">Australien</option>
+        <option value="netherlands">Niederlande</option>
+        <option value="sweden">Schweden</option>
+        <option value="italy">Italien</option>
+        <option value="spain">Spanien</option>
+        <option value="denmark">Dänemark</option>
+      </select>
+    </div>
+    <p class="hint">Meistgehandelte Aktien nach Volumen, nach Ländern des MSCI World. Klick auf eine Spalte sortiert.</p>
+    <div id="volume"></div>
+  </aside>
 </div>
 
 <footer>Daten und Charts von TradingView (teils verzögert). Keine Anlageberatung.</footer>
@@ -199,6 +231,20 @@
     });
   }
 
+  function renderVolume(){
+    const sel = document.getElementById("volMarket");
+    widget(document.getElementById("volume"), "screener", {
+      width: "100%", height: "100%", defaultColumn: "overview", defaultScreen: "volume_leaders",
+      market: sel.value, showToolbar: true, colorTheme: "dark", locale: "de_DE", isTransparent: true
+    });
+  }
+  (function(){
+    const sel = document.getElementById("volMarket");
+    sel.value = store.get(KEY+"-volmkt", "america");
+    if(!sel.value) sel.value = "america";
+    sel.addEventListener("change", () => { store.set(KEY+"-volmkt", sel.value); renderVolume(); });
+  })();
+
   function renderWatch(){
     const ul = document.getElementById("watch");
     ul.innerHTML = "";
@@ -268,7 +314,7 @@
   }
   tick(); setInterval(tick, 1000);
 
-  renderIntervals(); renderWatch(); renderTape(); renderMain(); renderMinis();
+  renderIntervals(); renderWatch(); renderTape(); renderMain(); renderMinis(); renderVolume();
 })();
 </script>
 </body>
