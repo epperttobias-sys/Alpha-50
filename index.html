@@ -48,7 +48,10 @@
   @media (max-width:700px){ .mgrid{grid-template-columns:1fr} }
   .clock{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px}
   .tape{border-bottom:1px solid var(--line)}
-  .layout{display:grid;grid-template-columns:240px auto minmax(0,1fr);min-height:calc(100vh - 110px)}
+  .layout{display:grid;grid-template-columns:290px auto minmax(0,1fr);min-height:calc(100vh - 110px)}
+  aside.movers{gap:10px}
+  aside.movers .rlist{max-height:calc(50vh - 120px);min-height:240px}
+  .rlist .addw{display:none !important}
   .ranks{border-right:1px solid var(--line);background:#0b0f17;padding:16px;display:flex;flex-direction:column;gap:12px;width:500px}
   .ranks .rh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .ranks .rh h2{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
@@ -126,7 +129,7 @@
   .empty{padding:40px;text-align:center;color:var(--muted)}
   footer{padding:14px 22px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
   @media (max-width:1400px){
-    .layout{grid-template-columns:240px minmax(0,1fr)}
+    .layout{grid-template-columns:290px minmax(0,1fr)}
     .ranks{grid-column:1 / -1;grid-row:2;width:auto;border-right:0;border-top:1px solid var(--line)}
     .rgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
   }
@@ -151,15 +154,12 @@
 <div class="tape" id="tape"></div>
 
 <div class="layout">
-  <aside>
-    <h2>Watchlist</h2>
-    <form class="add" id="addForm">
-      <input id="addInput" placeholder="z.B. NASDAQ:AMD" autocomplete="off" spellcheck="false">
-      <button type="submit" title="Hinzufügen">+</button>
-    </form>
-    <p class="hint">Format <code>BÖRSE:SYMBOL</code>, z.B. <code>NYSE:KO</code>, <code>XETR:SAP</code>, <code>SIX:NESN</code>. Ein reines Kürzel wie <code>AAPL</code> geht meist auch.</p>
-    <ul class="watch" id="watch"></ul>
-    <button id="reset" style="margin-top:auto;background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:7px;font-size:11px">Standardliste wiederherstellen</button>
+  <aside class="movers">
+    <!-- Watchlist vorübergehend ausgeblendet (Daten bleiben gespeichert) -->
+    <div class="mvhead"><h2>Top-Bewegung mit Volumen</h2></div>
+    <p class="hint">Unter den 100 meistgehandelten MSCI-World-Aktien (Umsatz in USD).</p>
+    <div class="rcol g"><h3>▲ 20 grösste Gewinner</h3><ul class="rlist" id="r-active_gainers"></ul></div>
+    <div class="rcol l"><h3>▼ 20 grösste Verlierer</h3><ul class="rlist" id="r-active_losers"></ul></div>
   </aside>
 
   <section class="ranks">
@@ -327,7 +327,7 @@
     }catch(e){ DATA = DATA || false; }
     renderVolume();
   }
-  const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers"];
+  const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "active_gainers", "active_losers"];
   function renderVolume(){
     const upd = document.getElementById("scrUpd");
     LISTS.forEach(key => {
@@ -341,6 +341,7 @@
         let main, sub;
         if(key === "volume_leaders"){ main = big(x.val); sub = pct; }
         else if(key === "most_capitalized"){ main = big(x.mc); sub = pct; }
+        else if(key.startsWith("active_")){ main = pct; sub = '<span style="color:var(--muted)">' + big(x.val) + ' $</span>'; }
         else { main = pct; sub = '<span style="color:var(--muted)">' + nf(x.p, 2) + ' ' + esc(x.cur) + '</span>'; }
         return '<li data-t="' + esc(x.t) + '" title="' + esc(x.n) + ' · ' + esc(x.c) + '">' +
           '<span class="rk">' + (i+1) + '</span>' +
@@ -422,6 +423,7 @@
 
   function renderWatch(){
     const ul = document.getElementById("watch");
+    if(!ul) return;
     ul.innerHTML = "";
     list.forEach(sym => {
       const li = document.createElement("li");
@@ -466,7 +468,7 @@
     renderWatch(); renderTape(); renderMinis();
   }
 
-  document.getElementById("addForm").addEventListener("submit", e => {
+  document.getElementById("addForm")?.addEventListener("submit", e => {
     e.preventDefault();
     const inp = document.getElementById("addInput");
     const sym = inp.value.trim().toUpperCase().replace(/\s+/g, "");
@@ -476,7 +478,7 @@
     select(sym);
   });
 
-  document.getElementById("reset").addEventListener("click", () => {
+  document.getElementById("reset")?.addEventListener("click", () => {
     list = DEFAULTS.slice(); save(); current = list[0]; store.set(KEY+"-cur", current);
     renderWatch(); renderTape(); renderMinis(); renderMain();
   });

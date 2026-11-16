@@ -241,9 +241,9 @@ def main():
             "top_losers": clean(sorted(items, key=lambda x: x["chg"])[:30]),
             # grösste Bewegungen unter den 100 meistgehandelten Titeln (Umsatz in USD)
             "active_gainers": clean(sorted([x for x in sorted(items, key=lambda x: x["val"], reverse=True)[:100]
-                                            if x["chg"] > 0], key=lambda x: x["chg"], reverse=True)[:10]),
+                                            if x["chg"] > 0], key=lambda x: x["chg"], reverse=True)[:20]),
             "active_losers": clean(sorted([x for x in sorted(items, key=lambda x: x["val"], reverse=True)[:100]
-                                           if x["chg"] < 0], key=lambda x: x["chg"])[:10]),
+                                           if x["chg"] < 0], key=lambda x: x["chg"])[:20]),
         },
     }
     with open("data.json", "w", encoding="utf-8") as f:
