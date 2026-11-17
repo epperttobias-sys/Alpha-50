@@ -170,7 +170,12 @@
       <div class="rcol g"><h3>Gewinner <small>heute</small></h3><ul class="rlist" id="r-top_gainers"></ul></div>
       <div class="rcol l"><h3>Verlierer <small>heute</small></h3><ul class="rlist" id="r-top_losers"></ul></div>
     </div>
-    <p class="hint">Nur Titel aus dem MSCI World. Klick öffnet den Chart, + nimmt in die Watchlist auf.</p>
+    <div class="rh" style="margin-top:6px"><h2>Technisches Signal (Tagesbasis)</h2></div>
+    <div class="rgrid">
+      <div class="rcol g"><h3>Starker Kauf <small id="cnt-strong_buy"></small></h3><ul class="rlist" id="r-strong_buy"></ul></div>
+      <div class="rcol l"><h3>Starker Verkauf <small id="cnt-strong_sell"></small></h3><ul class="rlist" id="r-strong_sell"></ul></div>
+    </div>
+    <p class="hint">Nur Titel aus dem MSCI World. Signal aus gleitenden Durchschnitten und Oszillatoren (−1 bis +1), sortiert nach Umsatz. Klick öffnet den Chart.</p>
   </section>
 
   <main>
@@ -337,7 +342,7 @@
     });
   }
   window.addEventListener("resize", () => { clearTimeout(window.__ft); window.__ft = setTimeout(fitTen, 150); });
-  const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "active_gainers", "active_losers"];
+  const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "active_gainers", "active_losers", "strong_buy", "strong_sell"];
   function renderVolume(){
     const upd = document.getElementById("scrUpd");
     LISTS.forEach(key => {
@@ -345,12 +350,19 @@
       if(DATA === null){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Lade Daten …</li>'; return; }
       if(!DATA){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Noch keine Daten.</li>'; return; }
       const rows = (DATA.lists && DATA.lists[key]) || [];
+      const cnt = document.getElementById("cnt-" + key);
+      if(cnt) cnt.textContent = rows.length + " Titel";
+      if(!rows.length){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Aktuell keine Titel.</li>'; return; }
       ul.innerHTML = rows.map((x, i) => {
         const cls = x.chg > 0 ? "up" : x.chg < 0 ? "dn" : "";
         const pct = '<span class="' + cls + '">' + (x.chg > 0 ? "+" : "") + nf(x.chg, 2) + '%</span>';
         let main, sub;
         if(key === "volume_leaders"){ main = big(x.val); sub = pct; }
         else if(key === "most_capitalized"){ main = big(x.mc); sub = pct; }
+        else if(key.startsWith("strong_")){
+          main = '<span class="' + (x.tr > 0 ? "up" : "dn") + '">' + (x.tr > 0 ? "+" : "") + nf(x.tr, 2) + '</span>';
+          sub = pct + ' · <span style="color:var(--muted)">' + big(x.val) + ' $</span>';
+        }
         else if(key.startsWith("active_")){ main = pct; sub = '<span style="color:var(--muted)">' + big(x.val) + ' $</span>'; }
         else { main = pct; sub = '<span style="color:var(--muted)">' + nf(x.p, 2) + ' ' + esc(x.cur) + '</span>'; }
         return '<li data-t="' + esc(x.t) + '" title="' + esc(x.n) + ' · ' + esc(x.c) + '">' +
