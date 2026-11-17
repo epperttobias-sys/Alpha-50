@@ -9,6 +9,7 @@ import io
 import json
 import math
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import numpy as np
@@ -307,18 +308,32 @@ def main():
             "_y": h["y"], "_fx": fx, "_f": factor,
         })
 
-    # Marktkapitalisierung für die nach Index-Gewicht grössten Titel
-    by_w = sorted(items, key=lambda x: (x["w"] or 0), reverse=True)[:80]
-    for it in by_w:
-        try:
-            fi = yf.Ticker(it["_y"]).fast_info
-            mc = float(getattr(fi, "market_cap", 0) or 0)
-            cur = str(getattr(fi, "currency", "") or "")
-            f = 0.01 if cur in ("GBp", "ILA", "ZAc") else 1.0
-            if mc > 0:
-                it["mc"] = round(mc * f * it["_fx"])
-        except Exception:
-            pass
+    # Marktkapitalisierung = Aktienanzahl × aktueller Kurs (in USD).
+    # Die Aktienanzahl ändert sich selten: einmal täglich für alle Titel abfragen, sonst Cache.
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with open("shares.json", encoding="utf-8") as f:
+            cache = json.load(f)
+    except Exception:
+        cache = {"date": "", "shares": {}}
+    shares = cache.get("shares", {})
+    if cache.get("date") != today:
+        def get_shares(y):
+            try:
+                return y, float(getattr(yf.Ticker(y).fast_info, "shares", 0) or 0)
+            except Exception:
+                return y, 0.0
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            for y, sh in ex.map(get_shares, [it["_y"] for it in items]):
+                if sh > 0:
+                    shares[y] = sh
+        cache = {"date": today, "shares": shares}
+        with open("shares.json", "w", encoding="utf-8") as f:
+            json.dump(cache, f, separators=(",", ":"))
+    for it in items:
+        sh = shares.get(it["_y"])
+        if sh:
+            it["mc"] = round(sh * it["p"] * it["_fx"])
 
     def clean(lst):
         return [{k: v for k, v in x.items() if not k.startswith("_")} for x in lst]
@@ -328,16 +343,9 @@ def main():
         "source": source,
         "count": len(items),
         "note": note,
+        "all": clean(sorted(items, key=lambda x: x["val"], reverse=True)),
         "lists": {
-            "volume_leaders": clean(sorted(items, key=lambda x: x["val"], reverse=True)[:50]),
-            "most_capitalized": clean(sorted([x for x in items if x.get("mc")], key=lambda x: x["mc"], reverse=True)[:50]),
-            "top_gainers": clean(sorted(items, key=lambda x: x["chg"], reverse=True)[:30]),
-            "top_losers": clean(sorted(items, key=lambda x: x["chg"])[:30]),
             # grösste Bewegungen unter den 100 meistgehandelten Titeln (Umsatz in USD)
-            "strong_buy": clean(sorted([x for x in items if x["tr"] is not None and x["tr"] > 0.5],
-                                       key=lambda x: x["val"], reverse=True)),
-            "strong_sell": clean(sorted([x for x in items if x["tr"] is not None and x["tr"] < -0.5],
-                                        key=lambda x: x["val"], reverse=True)),
             "active_gainers": clean(sorted([x for x in sorted(items, key=lambda x: x["val"], reverse=True)[:100]
                                             if x["chg"] > 0], key=lambda x: x["chg"], reverse=True)[:20]),
             "active_losers": clean(sorted([x for x in sorted(items, key=lambda x: x["val"], reverse=True)[:100]

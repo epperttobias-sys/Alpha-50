@@ -168,24 +168,25 @@
 
   <section class="ranks">
     <div class="rh"><h2>MSCI World</h2><span class="hint" id="scrUpd"></span></div>
+    <div class="rh sigbar">
+      <div class="filters">
+        <select id="fMarket" title="Markt"></select>
+        <select id="fSector" title="Sektor"></select>
+      </div>
+      <span class="hint" id="fCount"></span>
+    </div>
     <div class="rgrid">
       <div class="rcol"><h3>Volumen <small>Umsatz USD</small></h3><ul class="rlist" id="r-volume_leaders"></ul></div>
       <div class="rcol"><h3>Marktkap. <small>USD</small></h3><ul class="rlist" id="r-most_capitalized"></ul></div>
       <div class="rcol g"><h3>Gewinner <small>heute</small></h3><ul class="rlist" id="r-top_gainers"></ul></div>
       <div class="rcol l"><h3>Verlierer <small>heute</small></h3><ul class="rlist" id="r-top_losers"></ul></div>
     </div>
-    <div class="rh sigbar" style="margin-top:6px">
-      <h2>Technisches Signal (Tagesbasis)</h2>
-      <div class="filters">
-        <select id="fMarket" title="Markt"></select>
-        <select id="fSector" title="Sektor"></select>
-      </div>
-    </div>
+    <div class="rh" style="margin-top:6px"><h2>Technisches Signal (Tagesbasis)</h2></div>
     <div class="rgrid">
       <div class="rcol g"><h3>Starker Kauf <small id="cnt-strong_buy"></small></h3><ul class="rlist" id="r-strong_buy"></ul></div>
       <div class="rcol l"><h3>Starker Verkauf <small id="cnt-strong_sell"></small></h3><ul class="rlist" id="r-strong_sell"></ul></div>
     </div>
-    <p class="hint">Nur Titel aus dem MSCI World. Signal aus gleitenden Durchschnitten und Oszillatoren (−1 bis +1), sortiert nach Umsatz. Klick öffnet den Chart.</p>
+    <p class="hint">Markt- und Sektorfilter oben gelten für alle sechs Listen. Nur Titel aus dem MSCI World. Signal aus gleitenden Durchschnitten und Oszillatoren (−1 bis +1), sortiert nach Umsatz. Klick öffnet den Chart.</p>
   </section>
 
   <main>
@@ -371,7 +372,7 @@
   }
   function buildFilters(){
     const L = (DATA && DATA.lists) || {};
-    const rows = [...(L.strong_buy || []), ...(L.strong_sell || [])];
+    const rows = DATA.all || [...(L.strong_buy || []), ...(L.strong_sell || [])];
     const countries = [...new Set(rows.map(x => x.c).filter(Boolean))].sort((a, b) => cde(a).localeCompare(cde(b), "de"));
     const sectors = [...new Set(rows.map(x => x.s).filter(Boolean))].sort((a, b) => sde(a).localeCompare(sde(b), "de"));
     if(fMarket !== "all" && fMarket !== "europe" && !countries.includes(fMarket)) countries.push(fMarket);
@@ -386,18 +387,37 @@
   document.getElementById("fMarket").addEventListener("change", e => { fMarket = e.target.value; store.set(KEY+"-fmarket", fMarket); renderVolume(); });
   document.getElementById("fSector").addEventListener("change", e => { fSector = e.target.value; store.set(KEY+"-fsector", fSector); renderVolume(); });
 
+  const FILTERED = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "strong_buy", "strong_sell"];
+  function getRows(key){
+    const A = DATA.all;
+    if(!A || !FILTERED.includes(key)) return (DATA.lists && DATA.lists[key]) || [];
+    const by = f => (a, b) => f(b) - f(a);
+    switch(key){
+      case "volume_leaders": return A.slice().sort(by(x => x.val));
+      case "most_capitalized": return A.filter(x => x.mc).sort(by(x => x.mc));
+      case "top_gainers": return A.filter(x => x.chg > 0).sort(by(x => x.chg));
+      case "top_losers": return A.filter(x => x.chg < 0).sort(by(x => -x.chg));
+      case "strong_buy": return A.filter(x => x.tr != null && x.tr > 0.5).sort(by(x => x.val));
+      case "strong_sell": return A.filter(x => x.tr != null && x.tr < -0.5).sort(by(x => x.val));
+    }
+    return [];
+  }
   const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "active_gainers", "active_losers", "strong_buy", "strong_sell"];
   function renderVolume(){
-    if(DATA) buildFilters();
+    if(DATA){
+      buildFilters();
+      const fc = document.getElementById("fCount");
+      if(DATA.all) fc.textContent = (fMarket === "all" && fSector === "all") ? "" : DATA.all.filter(passFilter).length + " Titel im Filter";
+    }
     const upd = document.getElementById("scrUpd");
     LISTS.forEach(key => {
       const ul = document.getElementById("r-" + key);
       if(DATA === null){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Lade Daten …</li>'; return; }
       if(!DATA){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Noch keine Daten.</li>'; return; }
-      let rows = (DATA.lists && DATA.lists[key]) || [];
-      if(key.startsWith("strong_")) rows = rows.filter(passFilter);
+      let rows = getRows(key);
+      if(FILTERED.includes(key)) rows = rows.filter(passFilter);
       const total = rows.length;
-      if(key.startsWith("strong_")) rows = rows.slice(0, 50);
+      if(FILTERED.includes(key)) rows = rows.slice(0, 50);
       const cnt = document.getElementById("cnt-" + key);
       if(cnt) cnt.textContent = total + " Titel";
       if(!rows.length){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Aktuell keine Titel.</li>'; return; }
