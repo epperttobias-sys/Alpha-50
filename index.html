@@ -361,13 +361,13 @@
         else if(key === "most_capitalized"){ main = big(x.mc); sub = pct; }
         else if(key.startsWith("strong_")){
           main = '<span class="' + (x.tr > 0 ? "up" : "dn") + '">' + (x.tr > 0 ? "+" : "") + nf(x.tr, 2) + '</span>';
-          sub = pct + ' · <span style="color:var(--muted)">' + big(x.val) + ' $</span>';
+          sub = pct;
         }
         else if(key.startsWith("active_")){ main = pct; sub = '<span style="color:var(--muted)">' + big(x.val) + ' $</span>'; }
         else { main = pct; sub = '<span style="color:var(--muted)">' + nf(x.p, 2) + ' ' + esc(x.cur) + '</span>'; }
         return '<li data-t="' + esc(x.t) + '" title="' + esc(x.n) + ' · ' + esc(x.c) + '">' +
           '<span class="rk">' + (i+1) + '</span>' +
-          '<span class="nm"><b>' + esc(x.n) + '</b><span>' + esc(x.t) + '</span></span>' +
+          '<span class="nm"><b>' + esc(x.n) + '</b><span>' + esc(x.t) + (key.startsWith("strong_") ? ' · ' + big(x.val) + ' $' : '') + '</span></span>' +
           '<span class="v">' + main + '<small>' + sub + '</small></span>' +
           '</li>';
       }).join("");
