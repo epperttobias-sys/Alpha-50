@@ -140,6 +140,7 @@ def load_holdings():
             "y": m[0], "t": m[1], "n": row["Name"].strip().title(), "c": row.get("Location", "").strip(),
             "w": num(row.get("Weight (%)")), "ref": num(row.get("Price")),
             "cur": (row.get("Market Currency") or row.get("Currency") or "USD").strip(),
+            "s": (row.get("Sector") or "").strip(),
         })
     if len(out) < 500:
         raise RuntimeError(f"zu wenige Titel geladen: {len(out)}")
@@ -300,7 +301,7 @@ def main():
                 factor = 0.01
         tr = rating(df)
         items.append({
-            "n": h["n"], "t": h["t"], "c": h["c"], "w": None if math.isnan(h["w"]) else round(h["w"], 3),
+            "n": h["n"], "t": h["t"], "c": h["c"], "s": h.get("s", ""), "w": None if math.isnan(h["w"]) else round(h["w"], 3),
             "p": round(close * factor, 4), "cur": h["cur"], "chg": round((close / prev - 1) * 100, 2),
             "vol": int(vol), "val": round(vol * close * factor * fx), "date": str(df.index[-1].date()), "tr": tr,
             "_y": h["y"], "_fx": fx, "_f": factor,
@@ -334,9 +335,9 @@ def main():
             "top_losers": clean(sorted(items, key=lambda x: x["chg"])[:30]),
             # grösste Bewegungen unter den 100 meistgehandelten Titeln (Umsatz in USD)
             "strong_buy": clean(sorted([x for x in items if x["tr"] is not None and x["tr"] > 0.5],
-                                       key=lambda x: x["val"], reverse=True)[:50]),
+                                       key=lambda x: x["val"], reverse=True)),
             "strong_sell": clean(sorted([x for x in items if x["tr"] is not None and x["tr"] < -0.5],
-                                        key=lambda x: x["val"], reverse=True)[:50]),
+                                        key=lambda x: x["val"], reverse=True)),
             "active_gainers": clean(sorted([x for x in sorted(items, key=lambda x: x["val"], reverse=True)[:100]
                                             if x["chg"] > 0], key=lambda x: x["chg"], reverse=True)[:20]),
             "active_losers": clean(sorted([x for x in sorted(items, key=lambda x: x["val"], reverse=True)[:100]

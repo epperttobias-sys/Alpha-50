@@ -55,6 +55,10 @@
   .ranks{border-right:1px solid var(--line);background:#0b0f17;padding:16px;display:flex;flex-direction:column;gap:12px;width:500px}
   .ranks .rh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .ranks .rh h2{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
+  .sigbar{flex-wrap:wrap;align-items:center}
+  .filters{display:flex;gap:6px}
+  .filters select{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:5px 7px;font-size:11.5px;font-family:inherit;max-width:170px}
+  .filters select:focus{outline:none;border-color:var(--accent2)}
   .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
   .rcol{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
   .rcol h3{font-size:12px;font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
@@ -170,7 +174,13 @@
       <div class="rcol g"><h3>Gewinner <small>heute</small></h3><ul class="rlist" id="r-top_gainers"></ul></div>
       <div class="rcol l"><h3>Verlierer <small>heute</small></h3><ul class="rlist" id="r-top_losers"></ul></div>
     </div>
-    <div class="rh" style="margin-top:6px"><h2>Technisches Signal (Tagesbasis)</h2></div>
+    <div class="rh sigbar" style="margin-top:6px">
+      <h2>Technisches Signal (Tagesbasis)</h2>
+      <div class="filters">
+        <select id="fMarket" title="Markt"></select>
+        <select id="fSector" title="Sektor"></select>
+      </div>
+    </div>
     <div class="rgrid">
       <div class="rcol g"><h3>Starker Kauf <small id="cnt-strong_buy"></small></h3><ul class="rlist" id="r-strong_buy"></ul></div>
       <div class="rcol l"><h3>Starker Verkauf <small id="cnt-strong_sell"></small></h3><ul class="rlist" id="r-strong_sell"></ul></div>
@@ -342,16 +352,54 @@
     });
   }
   window.addEventListener("resize", () => { clearTimeout(window.__ft); window.__ft = setTimeout(fitTen, 150); });
+  // Filter für Starker Kauf / Verkauf
+  const COUNTRY_DE = {"United States":"USA","Switzerland":"Schweiz","Germany":"Deutschland","Japan":"Japan","United Kingdom":"Grossbritannien",
+    "France":"Frankreich","Canada":"Kanada","Netherlands":"Niederlande","Australia":"Australien","Spain":"Spanien","Italy":"Italien",
+    "Sweden":"Schweden","Denmark":"Dänemark","Finland":"Finnland","Norway":"Norwegen","Belgium":"Belgien","Austria":"Österreich",
+    "Ireland":"Irland","Portugal":"Portugal","Hong Kong":"Hongkong","Singapore":"Singapur","Israel":"Israel","New Zealand":"Neuseeland"};
+  const EUROPE = ["Switzerland","Germany","United Kingdom","France","Netherlands","Spain","Italy","Sweden","Denmark","Finland","Norway","Belgium","Austria","Ireland","Portugal"];
+  const SECTOR_DE = {"Information Technology":"Informationstechnologie","Financials":"Finanzen","Health Care":"Gesundheit",
+    "Consumer Discretionary":"Zyklischer Konsum","Consumer Staples":"Basiskonsum","Industrials":"Industrie","Communication":"Kommunikation",
+    "Energy":"Energie","Materials":"Rohstoffe","Utilities":"Versorger","Real Estate":"Immobilien"};
+  const cde = c => COUNTRY_DE[c] || c;
+  const sde = s => SECTOR_DE[s] || s;
+  let fMarket = store.get(KEY+"-fmarket", "all"), fSector = store.get(KEY+"-fsector", "all");
+  function passFilter(x){
+    if(fMarket === "europe" ? !EUROPE.includes(x.c) : (fMarket !== "all" && x.c !== fMarket)) return false;
+    if(fSector !== "all" && x.s !== fSector) return false;
+    return true;
+  }
+  function buildFilters(){
+    const L = (DATA && DATA.lists) || {};
+    const rows = [...(L.strong_buy || []), ...(L.strong_sell || [])];
+    const countries = [...new Set(rows.map(x => x.c).filter(Boolean))].sort((a, b) => cde(a).localeCompare(cde(b), "de"));
+    const sectors = [...new Set(rows.map(x => x.s).filter(Boolean))].sort((a, b) => sde(a).localeCompare(sde(b), "de"));
+    if(fMarket !== "all" && fMarket !== "europe" && !countries.includes(fMarket)) countries.push(fMarket);
+    if(fSector !== "all" && !sectors.includes(fSector)) sectors.push(fSector);
+    const m = document.getElementById("fMarket"), s = document.getElementById("fSector");
+    m.innerHTML = '<option value="all">Alle Märkte</option><option value="europe">Europa</option>' +
+      '<optgroup label="Länder">' + countries.map(c => '<option value="' + esc(c) + '">' + esc(cde(c)) + '</option>').join("") + '</optgroup>';
+    s.innerHTML = '<option value="all">Alle Sektoren</option>' + sectors.map(c => '<option value="' + esc(c) + '">' + esc(sde(c)) + '</option>').join("");
+    m.value = fMarket; s.value = fSector;
+    s.style.display = sectors.length ? "" : "none";
+  }
+  document.getElementById("fMarket").addEventListener("change", e => { fMarket = e.target.value; store.set(KEY+"-fmarket", fMarket); renderVolume(); });
+  document.getElementById("fSector").addEventListener("change", e => { fSector = e.target.value; store.set(KEY+"-fsector", fSector); renderVolume(); });
+
   const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "active_gainers", "active_losers", "strong_buy", "strong_sell"];
   function renderVolume(){
+    if(DATA) buildFilters();
     const upd = document.getElementById("scrUpd");
     LISTS.forEach(key => {
       const ul = document.getElementById("r-" + key);
       if(DATA === null){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Lade Daten …</li>'; return; }
       if(!DATA){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Noch keine Daten.</li>'; return; }
-      const rows = (DATA.lists && DATA.lists[key]) || [];
+      let rows = (DATA.lists && DATA.lists[key]) || [];
+      if(key.startsWith("strong_")) rows = rows.filter(passFilter);
+      const total = rows.length;
+      if(key.startsWith("strong_")) rows = rows.slice(0, 50);
       const cnt = document.getElementById("cnt-" + key);
-      if(cnt) cnt.textContent = rows.length + " Titel";
+      if(cnt) cnt.textContent = total + " Titel";
       if(!rows.length){ ul.innerHTML = '<li style="cursor:default;display:block" class="hint">Aktuell keine Titel.</li>'; return; }
       ul.innerHTML = rows.map((x, i) => {
         const cls = x.chg > 0 ? "up" : x.chg < 0 ? "dn" : "";
