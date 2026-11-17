@@ -55,7 +55,7 @@
   .ranks{border-right:1px solid var(--line);background:#0b0f17;padding:16px;display:flex;flex-direction:column;gap:12px;width:500px}
   .ranks .rh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .ranks .rh h2{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600}
-  .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
   .rcol{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
   .rcol h3{font-size:12px;font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
   .rcol h3 small{color:var(--muted);font-weight:500;font-size:10px}
@@ -72,7 +72,7 @@
   .rlist .addw{background:none;border:0;color:var(--muted);font-size:13px;padding:0 0 0 4px;opacity:0;cursor:pointer}
   .rlist li:hover .addw{opacity:1}
   .rlist .addw:hover{color:var(--accent)}
-  @media (min-width:2000px){ .ranks{width:960px} .rgrid{grid-template-columns:repeat(4,1fr)} .rlist{max-height:calc(100vh - 230px)} }
+  @media (min-width:2000px){ .ranks{width:960px} .rgrid{grid-template-columns:repeat(4,1fr)} }
   .right{border-left:1px solid var(--line);background:#0d1119;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
   .right .col-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .right h2{font-size:13px;font-weight:700;letter-spacing:.3px}
@@ -327,6 +327,16 @@
     }catch(e){ DATA = DATA || false; }
     renderVolume();
   }
+  // MSCI-Spalten: genau 10 Zeilen sichtbar, der Rest scrollt
+  function fitTen(){
+    document.querySelectorAll(".ranks .rlist").forEach(ul => {
+      const li = ul.querySelectorAll("li");
+      if(li.length > 10){
+        ul.style.maxHeight = (li[10].offsetTop - li[0].offsetTop) + "px";
+      } else ul.style.maxHeight = "none";
+    });
+  }
+  window.addEventListener("resize", () => { clearTimeout(window.__ft); window.__ft = setTimeout(fitTen, 150); });
   const LISTS = ["volume_leaders", "most_capitalized", "top_gainers", "top_losers", "active_gainers", "active_losers"];
   function renderVolume(){
     const upd = document.getElementById("scrUpd");
@@ -362,6 +372,7 @@
         li.addEventListener("click", () => select(sym));
       });
     });
+    fitTen();
     if(DATA){
       const d = new Date(DATA.updated);
       upd.textContent = "Stand " + d.toLocaleString("de-CH", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) + " · " + DATA.count + " Titel";
