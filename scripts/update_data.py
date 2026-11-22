@@ -71,12 +71,17 @@ FALLBACK = [  # falls die iShares-Liste nicht geladen werden kann: grösste Tite
 ]
 
 
-DEFENSE = {  # bekannte Rüstungs-/Verteidigungskonzerne (Yahoo-Symbole)
-    "LMT", "NOC", "GD", "RTX", "LHX", "HII", "BA", "TXT", "TDG", "HWM", "LDOS", "CW", "BWXT", "KTOS", "AXON",
-    "RHM.DE", "HAG.DE", "RENK.DE", "MTX.DE", "AIR.PA", "SAF.PA", "HO.PA", "AM.PA", "EXA.PA",
-    "BA.L", "RR.L", "QQ.L", "BAB.L", "CHG.L", "LDO.MI", "FCT.MI", "SAAB-B.ST", "KOG.OL",
-    "ESLT.TA", "7011.T", "7012.T", "7013.T", "CAE.TO", "IDR.MC",
+DEFENSE = {  # Rüstungskonzerne: Verteidigung ist Kerngeschäft (Yahoo-Symbole)
+    "LMT", "NOC", "GD", "LHX", "HII", "RTX", "LDOS", "KTOS", "BWXT", "CW", "AVAV", "MRCY",
+    "RHM.DE", "HAG.DE", "RENK.DE", "BA.L", "QQ.L", "CHG.L", "BAB.L",
+    "HO.PA", "AM.PA", "EXA.PA", "LDO.MI", "FCT.MI", "SAAB-B.ST", "KOG.OL",
+    "ESLT.TA", "IDR.MC", "7011.T",
 }
+AERO = {  # zivile Luft- & Raumfahrt (ergänzt die Branche "Aerospace & Defense")
+    "BA", "GE", "HWM", "TDG", "HEI", "HEI-A", "TXT", "AIR.PA", "SAF.PA", "RR.L", "MTX.DE",
+    "CAE.TO", "BBD-B.TO", "RKLB", "FTAI",
+}
+NOT_AERO = {"AXON"}  # von Yahoo als A&D geführt, aber weder Rüstung noch Luftfahrt
 
 
 def num(s):
@@ -371,8 +376,11 @@ def main():
         with open("industries.json", "w", encoding="utf-8") as f:
             json.dump(icache, f, separators=(",", ":"))
     for it in items:
-        if ind.get(it["_y"]) == "Aerospace & Defense" or it["_y"] in DEFENSE:
+        y = it["_y"]
+        if y in DEFENSE:
             it["d"] = 1
+        elif (ind.get(y) == "Aerospace & Defense" or y in AERO) and y not in NOT_AERO:
+            it["a"] = 1
 
     def clean(lst):
         return [{k: v for k, v in x.items() if not k.startswith("_")} for x in lst]
