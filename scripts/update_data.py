@@ -71,6 +71,14 @@ FALLBACK = [  # falls die iShares-Liste nicht geladen werden kann: grösste Tite
 ]
 
 
+DEFENSE = {  # bekannte Rüstungs-/Verteidigungskonzerne (Yahoo-Symbole)
+    "LMT", "NOC", "GD", "RTX", "LHX", "HII", "BA", "TXT", "TDG", "HWM", "LDOS", "CW", "BWXT", "KTOS", "AXON",
+    "RHM.DE", "HAG.DE", "RENK.DE", "MTX.DE", "AIR.PA", "SAF.PA", "HO.PA", "AM.PA", "EXA.PA",
+    "BA.L", "RR.L", "QQ.L", "BAB.L", "CHG.L", "LDO.MI", "FCT.MI", "SAAB-B.ST", "KOG.OL",
+    "ESLT.TA", "7011.T", "7012.T", "7013.T", "CAE.TO", "IDR.MC",
+}
+
+
 def num(s):
     try:
         return float(str(s).replace(",", ""))
@@ -334,6 +342,37 @@ def main():
         sh = shares.get(it["_y"])
         if sh:
             it["mc"] = round(sh * it["p"] * it["_fx"])
+
+    # Rüstung & Verteidigung: Branche "Aerospace & Defense" (Yahoo, wöchentlich gecacht)
+    # plus feste Liste bekannter Rüstungskonzerne
+    try:
+        with open("industries.json", encoding="utf-8") as f:
+            icache = json.load(f)
+    except Exception:
+        icache = {"date": "", "ind": {}}
+    ind = icache.get("ind", {})
+    stale = (not icache.get("date")) or (datetime.now(timezone.utc).date()
+                                         - datetime.fromisoformat(icache["date"]).date()).days >= 7
+    todo = [it["_y"] for it in items] if stale else [it["_y"] for it in items if it["_y"] not in ind]
+    if todo:
+        def get_ind(y):
+            try:
+                return y, str(yf.Ticker(y).info.get("industry") or "")
+            except Exception:
+                return y, None
+        got = 0
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for y, v in ex.map(get_ind, todo):
+                if v is not None:
+                    ind[y] = v
+                    got += 1
+        ok = got >= 0.5 * len(todo)
+        icache = {"date": today if ok else icache.get("date", ""), "ind": ind}
+        with open("industries.json", "w", encoding="utf-8") as f:
+            json.dump(icache, f, separators=(",", ":"))
+    for it in items:
+        if ind.get(it["_y"]) == "Aerospace & Defense" or it["_y"] in DEFENSE:
+            it["d"] = 1
 
     def clean(lst):
         return [{k: v for k, v in x.items() if not k.startswith("_")} for x in lst]

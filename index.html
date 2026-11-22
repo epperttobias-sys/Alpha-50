@@ -367,6 +367,7 @@
   let fMarket = store.get(KEY+"-fmarket", "all"), fSector = store.get(KEY+"-fsector", "all");
   function passFilter(x){
     if(fMarket === "europe" ? !EUROPE.includes(x.c) : (fMarket !== "all" && x.c !== fMarket)) return false;
+    if(fSector === "__defense") return !!x.d;
     if(fSector !== "all" && x.s !== fSector) return false;
     return true;
   }
@@ -376,11 +377,15 @@
     const countries = [...new Set(rows.map(x => x.c).filter(Boolean))].sort((a, b) => cde(a).localeCompare(cde(b), "de"));
     const sectors = [...new Set(rows.map(x => x.s).filter(Boolean))].sort((a, b) => sde(a).localeCompare(sde(b), "de"));
     if(fMarket !== "all" && fMarket !== "europe" && !countries.includes(fMarket)) countries.push(fMarket);
-    if(fSector !== "all" && !sectors.includes(fSector)) sectors.push(fSector);
+    if(fSector !== "all" && fSector !== "__defense" && !sectors.includes(fSector)) sectors.push(fSector);
+    const nDef = rows.filter(x => x.d).length;
     const m = document.getElementById("fMarket"), s = document.getElementById("fSector");
     m.innerHTML = '<option value="all">Alle Märkte</option><option value="europe">Europa</option>' +
       '<optgroup label="Länder">' + countries.map(c => '<option value="' + esc(c) + '">' + esc(cde(c)) + '</option>').join("") + '</optgroup>';
-    s.innerHTML = '<option value="all">Alle Sektoren</option>' + sectors.map(c => '<option value="' + esc(c) + '">' + esc(sde(c)) + '</option>').join("");
+    s.innerHTML = '<option value="all">Alle Sektoren</option>' +
+      (nDef ? '<optgroup label="Themen"><option value="__defense">Rüstung &amp; Verteidigung</option></optgroup>' : '') +
+      '<optgroup label="Sektoren">' + sectors.map(c => '<option value="' + esc(c) + '">' + esc(sde(c)) + '</option>').join("") + '</optgroup>';
+    if(fSector === "__defense" && !nDef) fSector = "all";
     m.value = fMarket; s.value = fSector;
     s.style.display = sectors.length ? "" : "none";
   }
